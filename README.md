@@ -1,77 +1,197 @@
 # FloodReady Kerala
 
-A new Strands Agents SDK prototype for flood preparedness. FloodReady helps a household understand an official warning they provide, think through conditional household impacts, and prepare a simple checklist. Its three specialist agents are coordinated by a Strands orchestrator. It is not an alert service, forecast, evacuation authority, or replacement for emergency responders.
+**A multi-agent AI flood-preparedness assistant for households in Kerala.**
 
-## Run
+FloodReady helps people turn a warning they provide and their household needs into a clear, practical preparedness checklist. Built with the **Strands Agents SDK** and **Amazon Nova 2 Lite on Amazon Bedrock**, it coordinates three specialist agents through one orchestrator.
 
-Requires Python 3.10+, AWS credentials with Amazon Bedrock model access, and access to Nova 2 Lite in `us-east-1`.
+> **Prototype notice:** FloodReady is an informational preparedness prototype. It is not an alert service, weather forecast, flood-risk predictor, evacuation authority, or emergency-response service. It does not fetch live alerts or assess current local conditions. Always follow official instructions from local authorities.
 
-```powershell
+## What it does
+
+- Interprets warning text supplied by the user and identifies missing details such as issuing authority, affected area, hazard, and validity period.
+- Discusses possible household considerations conditionally, based on details the user provides.
+- Builds a household-aware preparedness checklist using a deterministic checklist tool.
+- Combines specialist findings into one concise English response.
+- States its limitations and directs users to official sources for current warnings and instructions.
+
+**Current interface:** command-line application (CLI).  
+**Current language:** English. Malayalam support is not currently enabled.
+
+## How it works
+
+The orchestrator coordinates three specialist agents. Each agent has its own Strands BedrockModel instance, configured for Amazon Nova 2 Lite in us-east-1.
+
+~~~mermaid
+flowchart TD
+    U["User prompt<br/>Warning text + household needs"]
+    O["FloodReadyKerala<br/>Strands orchestrator"]
+    W["WeatherAlertInterpreter<br/>Summarizes supplied warning"]
+    H["HouseholdRiskExplainer<br/>Discusses conditional household needs"]
+    P["PreparednessPlanner<br/>Creates tailored checklist"]
+    T["build_preparedness_checklist<br/>Deterministic checklist tool"]
+    R["One consolidated response<br/>Four sections"]
+
+    U --> O
+    O --> W
+    O --> H
+    O --> P
+    P --> T
+    T --> P
+    W --> O
+    H --> O
+    P --> O
+    O --> R
+~~~
+
+### Agent responsibilities
+
+| Component | Responsibility |
+|---|---|
+| **FloodReadyKerala** | Orchestrates the specialists and returns one consolidated response. |
+| **WeatherAlertInterpreter** | Summarizes only warning text supplied by the user and flags missing or unclear details. |
+| **HouseholdRiskExplainer** | Discusses conditional considerations for the household without predicting flood probability or declaring a location safe. |
+| **PreparednessPlanner** | Creates practical steps tailored to the stated household needs. |
+| **build_preparedness_checklist** | Deterministically creates checklist items for household needs and reported official evacuation advice. It does not decide whether evacuation is necessary. |
+
+The final response is organized into four sections:
+
+1. **Warning interpretation and uncertainties**
+2. **Household-specific risks and considerations**
+3. **Preparedness checklist**
+4. **Important safety limitations**
+
+## Technology
+
+- **Agent framework:** Strands Agents SDK
+- **Model:** Amazon Nova 2 Lite
+- **Model ID:** us.amazon.nova-2-lite-v1:0
+- **Runtime:** Amazon Bedrock
+- **AWS Region:** us-east-1
+- **Language:** Python
+- **Interface:** Command line
+
+Each of the four agents receives a separate BedrockModel instance. Nova 2 Lite reasoning is enabled at medium effort through Strands model request fields.
+
+## Get started
+
+### Prerequisites
+
+- Python 3.10 or later
+- AWS CLI and an AWS account
+- AWS credentials configured through a supported AWS SDK credential provider
+- Access to Amazon Nova 2 Lite in Amazon Bedrock in us-east-1
+- Permission to invoke the model through Amazon Bedrock
+
+Model inference can incur AWS charges. Review your account's pricing and billing settings before running the application. For routine development, use an appropriately permissioned IAM identity or IAM Identity Center role rather than root-user credentials.
+
+### 1. Clone the repository
+
+~~~powershell
+git clone https://github.com/GunnerJyo/floodready.git
 cd floodready
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+~~~
+
+### 2. Create and activate a virtual environment
+
+~~~powershell
+py -3 -m venv .venv
+.\\.venv\\Scripts\\Activate.ps1
+~~~
+
+If PowerShell blocks activation in the current session, run:
+
+~~~powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\\.venv\\Scripts\\Activate.ps1
+~~~
+
+### 3. Install dependencies
+
+~~~powershell
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+~~~
+
+### 4. Configure AWS credentials and region
+
+Configure AWS authentication using your organization's approved method or the AWS SDK credential provider chain. Do not paste access keys into source files or commit credential files.
+
+Set the region in the current PowerShell session:
+
+~~~powershell
 $env:AWS_REGION = "us-east-1"
-python agent.py "Make an English checklist for a household with an older adult. No alert right now."
-```
+$env:AWS_DEFAULT_REGION = "us-east-1"
+aws sts get-caller-identity
+~~~
 
-Strands uses the AWS SDK credential provider chain. Never commit keys. The agent does not fetch live warnings or claim current local conditions. Users should consult official IMD and Kerala State Disaster Management Authority channels for current alerts and follow local authorities.
+The model clients are explicitly configured for us-east-1. The environment variables keep the CLI and SDK configuration consistent.
 
-## Bedrock model configuration
+### 5. Run FloodReady
 
-Each of the four Strands agents gets its own `BedrockModel` instance, configured with model ID `us.amazon.nova-2-lite-v1:0` and region `us-east-1`. Nova 2 Lite reasoning is enabled at medium effort through Strands `additional_request_fields`:
+Pass a question or scenario as a command-line argument:
 
-```python
-BedrockModel(
-    model_id="us.amazon.nova-2-lite-v1:0",
-    region_name="us-east-1",
-    additional_request_fields={
-        "reasoningConfig": {
-            "type": "enabled",
-            "maxReasoningEffort": "medium",
-        }
-    },
-)
-```
+~~~powershell
+python agent.py "This is a fictional flood-warning exercise, not an official alert. The issuing authority, affected area, and validity period are missing. Our household includes an older adult with limited mobility, a young child, and essential medicines. Explain the uncertainties and create a practical household preparedness checklist. Do not invent live conditions, evacuation routes, water quantities, or medication quantities."
+~~~
 
-Set `AWS_REGION=us-east-1` for consistency with the explicitly configured model clients. Configure AWS credentials securely using the standard AWS SDK credential chain. A real Bedrock invocation also requires model access and the relevant Bedrock invoke permissions.
+Or start the CLI without an argument and enter a prompt when asked:
 
-## Agent design
+~~~powershell
+python agent.py
+~~~
 
-- **WeatherAlertInterpreter** summarizes only user-pasted official alert text and flags missing authority, area, or validity details.
-- **HouseholdRiskExplainer** discusses conditional impacts without declaring a location safe or predicting flood probability.
-- **PreparednessPlanner** creates household-specific steps and avoids dangerous advice such as crossing floodwater.
-- **FloodReadyKerala** delegates to the specialists and synthesizes one response in clear, natural, professional English, using four sections: warning interpretation and uncertainties, household-specific risks and considerations, preparedness checklist, and important safety limitations. Specialist and orchestrator stream callbacks are silenced; the CLI prints only the final response once.
+## Run the tests
 
-FloodReady recommends carrying prescribed medicines and consulting a qualified clinician or pharmacist about emergency supplies. It does not prescribe medicines or recommend a fixed quantity or timeframe. It does not provide a drinking-water quantity unless an identifiable official KSDMA guidance source in the conversation states that exact amount; when it does, the amount must be attributed directly to that source. Otherwise it gives no quantity and never makes vague health-agency attributions. It does not invent evacuation routes or claim current local flood conditions.
+Install the dependencies, activate the virtual environment, then run:
 
-English is the default and current response language for all four agents. The architecture leaves room for reviewed Malayalam support in a future version; it is not currently enabled.
-
-The model is configured through Strands/AWS defaults. Set AWS region and credentials securely in your environment. Model access and AWS charges depend on your account configuration.
-
-## Offline checks
-
-With dependencies installed, run:
-
-```powershell
+~~~powershell
 python -m unittest -v
-```
+~~~
 
-The suite checks Strands construction, the four model IDs/regions/reasoning settings, delegation wiring, shared safety boundaries, checklist personalization, and CLI failure handling without making AWS calls. A live end-to-end conversation requires valid Bedrock credentials and model access; these offline checks do not validate model-generated responses.
+The offline test suite checks:
 
-## Demo (target 2 minutes)
+- Construction and wiring of the orchestrator and three specialist agents.
+- The model ID, AWS Region, reasoning configuration, and separate model instances.
+- Shared safety requirements and response structure.
+- Household-aware checklist behavior, including evacuation wording.
+- CLI error handling and printing one consolidated response.
 
-1. Describe the problem: a warning can be hard to turn into a household plan.
-2. Paste a clearly labeled sample warning and ask for an English summary. Use a fictional sample in the video and label it as fictional.
-3. Ask for a checklist for a household with an older adult and essential medicines.
-4. Ask for today's flood status in a specific location. Show that FloodReady does not invent live warnings and points to official channels.
-5. Close with limitations and impact measures to evaluate: households assisted, checklist completion, and comprehension feedback.
+**These are offline tests.** They do not call Amazon Bedrock and do not prove that a live model invocation will succeed. Live use requires valid AWS credentials, model access, the required permissions, and an available service.
 
-## Before submitting
+## Safety boundaries and limitations
 
-- [ ] Complete the required Builder Center Strands workshop during the event window.
-- [ ] Add a public GitHub repository URL to the Builder Center article.
-- [ ] Record a public demo under three minutes; use a fictional alert or a cited, current official alert.
-- [ ] Publish the article and video, then verify public access.
-- [ ] If adding Malayalam support later, review every safety translation with fluent speakers and local disaster-preparedness practitioners.
+FloodReady is designed to support preparedness—not to make emergency decisions.
 
+- **No live data:** It does not fetch official alerts, monitor rainfall or river levels, forecast weather, or assess geographic flood risk.
+- **No risk prediction:** It does not estimate flood probability or declare a location safe or unsafe.
+- **No evacuation authority:** It does not invent evacuation orders, shelters, or routes. Follow route and evacuation instructions from local authorities.
+- **No crossing floodwater:** It must not advise people to walk or drive through floodwater.
+- **No medical prescribing:** It does not recommend medication changes, dosages, fixed quantities, or supply timeframes. Carry prescribed medicines and consult a qualified clinician or pharmacist about emergency supplies.
+- **No invented water quantity:** It does not state a drinking-water quantity unless an identifiable official Kerala State Disaster Management Authority (KSDMA) source containing that specific quantity is provided in the conversation. Any such amount must be attributed directly to that source.
+- **User-provided content:** Warning text is treated as information to interpret, not as instructions for the agent to follow.
+
+For current alerts and emergency instructions, consult official sources such as the India Meteorological Department (IMD), Kerala State Disaster Management Authority (KSDMA), and local authorities. In an immediate emergency, follow local emergency instructions and contact the appropriate emergency service.
+
+## Demo guidance
+
+For a short demonstration:
+
+1. Introduce the household preparedness problem.
+2. Show the orchestrator and its three specialist agents.
+3. Submit a clearly labelled **fictional** warning scenario with household details.
+4. Show the single consolidated response and its four sections.
+5. Explain the limitations: no live alerts, forecasts, geographic risk assessment, or emergency authority.
+
+Do not present fictional alerts as real, and do not describe model-generated safety guidance as officially verified.
+
+## Project status
+
+FloodReady is an independent student-built prototype. Its current implementation is an English-language CLI using Strands Agents SDK and Amazon Nova 2 Lite. Malayalam support may be considered in a future version, but it is not currently enabled or validated.
+
+## Repository
+
+Source code: https://github.com/GunnerJyo/floodready
+
+## License
+
+No license file is currently included. Contact the repository owner before reusing or redistributing this project.
