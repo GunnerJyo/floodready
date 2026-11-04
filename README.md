@@ -95,14 +95,14 @@ cd floodready
 
 ~~~powershell
 py -3 -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ~~~
 
 If PowerShell blocks activation in the current session, run:
 
 ~~~powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ~~~
 
 ### 3. Install dependencies
